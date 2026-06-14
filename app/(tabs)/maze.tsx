@@ -382,6 +382,49 @@ export default function MazeScreen() {
         })
     ).current;
 
+    // ─── Web swipe fallback (PanResponder is unreliable on react-native-web) ──
+    const webSwipeStart = useRef({ x: 0, y: 0 });
+    const handleWebTouchStart = useCallback((e: any) => {
+        const touch = e.nativeEvent?.touches?.[0] ?? e.nativeEvent;
+        webSwipeStart.current = { x: touch.pageX ?? touch.clientX ?? 0, y: touch.pageY ?? touch.clientY ?? 0 };
+    }, []);
+    const handleWebTouchEnd = useCallback((e: any) => {
+        const touch = e.nativeEvent?.changedTouches?.[0] ?? e.nativeEvent;
+        const endX = touch.pageX ?? touch.clientX ?? webSwipeStart.current.x;
+        const endY = touch.pageY ?? touch.clientY ?? webSwipeStart.current.y;
+        const dx = endX - webSwipeStart.current.x;
+        const dy = endY - webSwipeStart.current.y;
+        const threshold = 20;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            if (dx > threshold) move(0, 1);
+            else if (dx < -threshold) move(0, -1);
+        } else {
+            if (dy > threshold) move(1, 0);
+            else if (dy < -threshold) move(-1, 0);
+        }
+    }, [move]);
+    // Mouse fallback for desktop browsers (click-and-drag swipe)
+    const webMouseDown = useRef<{ x: number; y: number } | null>(null);
+    const handleWebMouseDown = useCallback((e: any) => {
+        webMouseDown.current = { x: e.nativeEvent.clientX ?? 0, y: e.nativeEvent.clientY ?? 0 };
+    }, []);
+    const handleWebMouseUp = useCallback((e: any) => {
+        if (!webMouseDown.current) return;
+        const endX = e.nativeEvent.clientX ?? webMouseDown.current.x;
+        const endY = e.nativeEvent.clientY ?? webMouseDown.current.y;
+        const dx = endX - webMouseDown.current.x;
+        const dy = endY - webMouseDown.current.y;
+        const threshold = 20;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            if (dx > threshold) move(0, 1);
+            else if (dx < -threshold) move(0, -1);
+        } else {
+            if (dy > threshold) move(1, 0);
+            else if (dy < -threshold) move(-1, 0);
+        }
+        webMouseDown.current = null;
+    }, [move]);
+
     // ─── Cell sizing (responsive) ─────────────────────────────────────────────
     const { width: winW, height: winH } = useWindowDimensions();
     // Compute available vertical space by subtracting measured header/stats/controls heights
@@ -459,76 +502,153 @@ export default function MazeScreen() {
             </View>
 
             {/* Maze Grid with swipe */}
-            <ScrollView
-                contentContainerStyle={styles.mazeContainer}
-                scrollEnabled={false}
-                {...panResponder.panHandlers}
-            >
-                <View style={[styles.mazeWrapper, { borderColor: isChaseMode ? '#FF4444' : '#6b21a8', width: SAFE_BOARD_SIZE, height: SAFE_BOARD_SIZE, maxWidth: SAFE_BOARD_SIZE, maxHeight: SAFE_BOARD_SIZE }]}>
-                    <View
-                        style={{
-                            width: BOARD_SIZE,
-                            height: BOARD_SIZE,
-                            transform: [{ scale: BOARD_SIZE > 0 ? SAFE_BOARD_SIZE / BOARD_SIZE : 1 }],
-                            transformOrigin: 'top left',
-                        }}
-                    >
-                        {maze.grid.map((row, r) => (
-                            <View key={r} style={{ flexDirection: 'row' }}>
-                                {row.map((cell, c) => {
-                                    const isPlayer = pos.row === r && pos.col === c;
-                                    const isFinish = maze.finish.row === r && maze.finish.col === c;
-                                    const isChaser = chaserPos?.row === r && chaserPos?.col === c;
-                                    const hasCoin = remainingCoins.some(cn => cn.row === r && cn.col === c);
-                                    const isWall = cell === 1;
+            {Platform.OS === 'web' ? (
+                <View
+                    style={styles.mazeContainer}
+                    onTouchStart={handleWebTouchStart}
+                    onTouchEnd={handleWebTouchEnd}
+                    // @ts-ignore - mouse events exist on web via react-native-web
+                    onMouseDown={handleWebMouseDown}
+                    // @ts-ignore - mouse events exist on web via react-native-web
+                    onMouseUp={handleWebMouseUp}
+                >
+                    <View style={[styles.mazeWrapper, { borderColor: isChaseMode ? '#FF4444' : '#6b21a8', width: SAFE_BOARD_SIZE, height: SAFE_BOARD_SIZE, maxWidth: SAFE_BOARD_SIZE, maxHeight: SAFE_BOARD_SIZE }]}>
+                        <View
+                            style={{
+                                width: BOARD_SIZE,
+                                height: BOARD_SIZE,
+                                transform: [{ scale: BOARD_SIZE > 0 ? SAFE_BOARD_SIZE / BOARD_SIZE : 1 }],
+                                transformOrigin: 'top left',
+                            }}
+                        >
+                            {maze.grid.map((row, r) => (
+                                <View key={r} style={{ flexDirection: 'row' }}>
+                                    {row.map((cell, c) => {
+                                        const isPlayer = pos.row === r && pos.col === c;
+                                        const isFinish = maze.finish.row === r && maze.finish.col === c;
+                                        const isChaser = chaserPos?.row === r && chaserPos?.col === c;
+                                        const hasCoin = remainingCoins.some(cn => cn.row === r && cn.col === c);
+                                        const isWall = cell === 1;
 
-                                    return (
-                                        <View
-                                            key={c}
-                                            style={[
-                                                { width: CELL, height: CELL },
-                                                isWall ? styles.wall : styles.path,
-                                                isFinish && !isPlayer && styles.finishCell,
-                                            ]}
-                                        >
-                                            {isWall && (
-                                                <Text style={[styles.adinkraGlyph, { fontSize: CELL * 0.45 }]}>
-                                                    {adinkraForWall(r, c)}
-                                                </Text>
-                                            )}
-                                            {!isWall && !isPlayer && !isFinish && !isChaser && hasCoin && (
-                                                <Text style={[styles.coinGlyph, { fontSize: CELL * 0.5 }]}>🪙</Text>
-                                            )}
-                                            {isFinish && !isPlayer && (
-                                                <Animated.Text style={[
-                                                    styles.finishGlyph,
-                                                    { fontSize: CELL * 0.6, transform: [{ scale: pulseAnim }] }
-                                                ]}>
-                                                    💎
-                                                </Animated.Text>
-                                            )}
-                                            {isChaser && !isPlayer && (
-                                                <Text style={[styles.chaserGlyph, { fontSize: CELL * 0.6 }]}>👮🏾</Text>
-                                            )}
-                                            {isPlayer && (
-                                                <Animated.Text style={[
-                                                    styles.playerGlyph,
-                                                    {
-                                                        fontSize: CELL * 0.65,
-                                                        opacity: playerGlow.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }),
-                                                    }
-                                                ]}>
-                                                    🧒🏾
-                                                </Animated.Text>
-                                            )}
-                                        </View>
-                                    );
-                                })}
-                            </View>
-                        ))}
+                                        return (
+                                            <View
+                                                key={c}
+                                                style={[
+                                                    { width: CELL, height: CELL },
+                                                    isWall ? styles.wall : styles.path,
+                                                    isFinish && !isPlayer && styles.finishCell,
+                                                ]}
+                                            >
+                                                {isWall && (
+                                                    <Text style={[styles.adinkraGlyph, { fontSize: CELL * 0.45 }]}>
+                                                        {adinkraForWall(r, c)}
+                                                    </Text>
+                                                )}
+                                                {!isWall && !isPlayer && !isFinish && !isChaser && hasCoin && (
+                                                    <Text style={[styles.coinGlyph, { fontSize: CELL * 0.5 }]}>🪙</Text>
+                                                )}
+                                                {isFinish && !isPlayer && (
+                                                    <Animated.Text style={[
+                                                        styles.finishGlyph,
+                                                        { fontSize: CELL * 0.6, transform: [{ scale: pulseAnim }] }
+                                                    ]}>
+                                                        💎
+                                                    </Animated.Text>
+                                                )}
+                                                {isChaser && !isPlayer && (
+                                                    <Text style={[styles.chaserGlyph, { fontSize: CELL * 0.6 }]}>👮🏾</Text>
+                                                )}
+                                                {isPlayer && (
+                                                    <Animated.Text style={[
+                                                        styles.playerGlyph,
+                                                        {
+                                                            fontSize: CELL * 0.65,
+                                                            opacity: playerGlow.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }),
+                                                        }
+                                                    ]}>
+                                                        🧒🏾
+                                                    </Animated.Text>
+                                                )}
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            ))}
+                        </View>
                     </View>
                 </View>
-            </ScrollView>
+            ) : (
+                <ScrollView
+                    contentContainerStyle={styles.mazeContainer}
+                    scrollEnabled={false}
+                    {...panResponder.panHandlers}
+                >
+                    <View style={[styles.mazeWrapper, { borderColor: isChaseMode ? '#FF4444' : '#6b21a8', width: SAFE_BOARD_SIZE, height: SAFE_BOARD_SIZE, maxWidth: SAFE_BOARD_SIZE, maxHeight: SAFE_BOARD_SIZE }]}>
+                        <View
+                            style={{
+                                width: BOARD_SIZE,
+                                height: BOARD_SIZE,
+                                transform: [{ scale: BOARD_SIZE > 0 ? SAFE_BOARD_SIZE / BOARD_SIZE : 1 }],
+                                transformOrigin: 'top left',
+                            }}
+                        >
+                            {maze.grid.map((row, r) => (
+                                <View key={r} style={{ flexDirection: 'row' }}>
+                                    {row.map((cell, c) => {
+                                        const isPlayer = pos.row === r && pos.col === c;
+                                        const isFinish = maze.finish.row === r && maze.finish.col === c;
+                                        const isChaser = chaserPos?.row === r && chaserPos?.col === c;
+                                        const hasCoin = remainingCoins.some(cn => cn.row === r && cn.col === c);
+                                        const isWall = cell === 1;
+
+                                        return (
+                                            <View
+                                                key={c}
+                                                style={[
+                                                    { width: CELL, height: CELL },
+                                                    isWall ? styles.wall : styles.path,
+                                                    isFinish && !isPlayer && styles.finishCell,
+                                                ]}
+                                            >
+                                                {isWall && (
+                                                    <Text style={[styles.adinkraGlyph, { fontSize: CELL * 0.45 }]}>
+                                                        {adinkraForWall(r, c)}
+                                                    </Text>
+                                                )}
+                                                {!isWall && !isPlayer && !isFinish && !isChaser && hasCoin && (
+                                                    <Text style={[styles.coinGlyph, { fontSize: CELL * 0.5 }]}>🪙</Text>
+                                                )}
+                                                {isFinish && !isPlayer && (
+                                                    <Animated.Text style={[
+                                                        styles.finishGlyph,
+                                                        { fontSize: CELL * 0.6, transform: [{ scale: pulseAnim }] }
+                                                    ]}>
+                                                        💎
+                                                    </Animated.Text>
+                                                )}
+                                                {isChaser && !isPlayer && (
+                                                    <Text style={[styles.chaserGlyph, { fontSize: CELL * 0.6 }]}>👮🏾</Text>
+                                                )}
+                                                {isPlayer && (
+                                                    <Animated.Text style={[
+                                                        styles.playerGlyph,
+                                                        {
+                                                            fontSize: CELL * 0.65,
+                                                            opacity: playerGlow.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }),
+                                                        }
+                                                    ]}>
+                                                        🧒🏾
+                                                    </Animated.Text>
+                                                )}
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                </ScrollView>
+            )}
 
             {/* D-Pad (native) / Swipe hint (web) */}
             <View style={styles.controls} onLayout={(e) => setControlsH(e.nativeEvent.layout.height)}>
