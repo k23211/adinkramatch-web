@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "AdinkraMatch",
+    "slug": "adinkramatch3",
+    "version": "7.4.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "package": "com.adinkramatchgh.game",
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 122
+    },
+    "ios": {
+      "bundleIdentifier": "com.adinkramatchgh.game",
+      "supportsTablet": true
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "@react-native-firebase/app",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-5377997497697187~6853112756",
+          "iosAppId": "ca-app-pub-5377997497697187~6853112756"
+        }
+      ]
+    ],
+    "scheme": "adinkramatch",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0426a7b5-e411-436a-b1d7-4325521a8b64"
+      }
+    },
+    "owner": "kofi3"
+  }
+}
