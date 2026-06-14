@@ -359,6 +359,22 @@ export default function MazeScreen() {
         });
     }, [gameState, maze, chaserPos]);
 
+    // ─── Cell sizing (responsive) ─────────────────────────────────────────────
+    const { width: winW, height: winH } = useWindowDimensions();
+    // Compute available vertical space by subtracting measured header/stats/controls heights
+    const extraPadding = 48; // safe padding for margins and modals
+    const availableHeight = Math.max(200, winH - headerH - statsH - controlsH - extraPadding);
+    const maxBoardFromWidth = Math.max(200, winW - 32);
+    const boardMax = Math.min(maxBoardFromWidth, availableHeight);
+    let CELL = Math.floor(boardMax / maze.size);
+    if (CELL < 10) CELL = 10; // minimum cell size for usability
+    const BOARD_SIZE = CELL * maze.size;
+    // On web, also cap BOARD_SIZE to never exceed the available width/height
+    // so the grid can never overflow its bordered wrapper, even if CELL
+    // ends up larger than ideal due to the minimum cell size above.
+    const SAFE_BOARD_SIZE = Math.min(BOARD_SIZE, maxBoardFromWidth, availableHeight);
+    const boardScale = BOARD_SIZE > 0 ? SAFE_BOARD_SIZE / BOARD_SIZE : 1;
+
     // ─── Swipe gestures ───────────────────────────────────────────────────────
     const swipeRef = useRef({ x: 0, y: 0 });
     const panResponder = useRef(
@@ -382,8 +398,53 @@ export default function MazeScreen() {
         })
     ).current;
 
-    // ─── Web swipe fallback (PanResponder is unreliable on react-native-web) ──
+    // ─── Web swipe + tap fallback (PanResponder is unreliable on react-native-web) ──
+    // Keep latest layout/position values in refs so callbacks don't go stale.
+    const cellRef = useRef(CELL);
+    const scaleRef = useRef(boardScale);
+    const posRef = useRef(pos);
+    cellRef.current = CELL;
+    scaleRef.current = boardScale;
+    posRef.current = pos;
+
     const webSwipeStart = useRef({ x: 0, y: 0 });
+    const boardRef = useRef<View>(null);
+
+    // Given a tap's coordinates relative to the board's top-left corner,
+    // figure out which direction (toward the player's cell) was tapped.
+    const tapToDirection = (relX: number, relY: number): [number, number] | null => {
+        const cell = cellRef.current * scaleRef.current;
+        if (cell <= 0) return null;
+        const tappedCol = Math.floor(relX / cell);
+        const tappedRow = Math.floor(relY / cell);
+        const { row: pr, col: pc } = posRef.current;
+        const dRow = tappedRow - pr;
+        const dCol = tappedCol - pc;
+        if (dRow === 0 && dCol === 0) return null;
+        // Move one step toward the tapped cell, prioritizing the larger axis.
+        if (Math.abs(dCol) > Math.abs(dRow)) {
+            return [0, dCol > 0 ? 1 : -1];
+        } else {
+            return [dRow > 0 ? 1 : -1, 0];
+        }
+    };
+
+    const resolveSwipeOrTap = (dx: number, dy: number, relX: number, relY: number) => {
+        const threshold = 20;
+        if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+            // Swipe gesture
+            if (Math.abs(dx) > Math.abs(dy)) {
+                move(0, dx > 0 ? 1 : -1);
+            } else {
+                move(dy > 0 ? 1 : -1, 0);
+            }
+        } else {
+            // Tap gesture - move toward the tapped cell
+            const dir = tapToDirection(relX, relY);
+            if (dir) move(dir[0], dir[1]);
+        }
+    };
+
     const handleWebTouchStart = useCallback((e: any) => {
         const touch = e.nativeEvent?.touches?.[0] ?? e.nativeEvent;
         webSwipeStart.current = { x: touch.pageX ?? touch.clientX ?? 0, y: touch.pageY ?? touch.clientY ?? 0 };
@@ -394,16 +455,19 @@ export default function MazeScreen() {
         const endY = touch.pageY ?? touch.clientY ?? webSwipeStart.current.y;
         const dx = endX - webSwipeStart.current.x;
         const dy = endY - webSwipeStart.current.y;
-        const threshold = 20;
-        if (Math.abs(dx) > Math.abs(dy)) {
-            if (dx > threshold) move(0, 1);
-            else if (dx < -threshold) move(0, -1);
+
+        // Measure the board's position on screen to get tap coords relative to it.
+        const target = boardRef.current as any;
+        if (target?.measure) {
+            target.measure((_x: number, _y: number, _w: number, _h: number, pageX: number, pageY: number) => {
+                resolveSwipeOrTap(dx, dy, endX - pageX, endY - pageY);
+            });
         } else {
-            if (dy > threshold) move(1, 0);
-            else if (dy < -threshold) move(-1, 0);
+            resolveSwipeOrTap(dx, dy, 0, 0);
         }
     }, [move]);
-    // Mouse fallback for desktop browsers (click-and-drag swipe)
+
+    // Mouse fallback for desktop browsers (click or click-and-drag swipe)
     const webMouseDown = useRef<{ x: number; y: number } | null>(null);
     const handleWebMouseDown = useCallback((e: any) => {
         webMouseDown.current = { x: e.nativeEvent.clientX ?? 0, y: e.nativeEvent.clientY ?? 0 };
@@ -414,31 +478,17 @@ export default function MazeScreen() {
         const endY = e.nativeEvent.clientY ?? webMouseDown.current.y;
         const dx = endX - webMouseDown.current.x;
         const dy = endY - webMouseDown.current.y;
-        const threshold = 20;
-        if (Math.abs(dx) > Math.abs(dy)) {
-            if (dx > threshold) move(0, 1);
-            else if (dx < -threshold) move(0, -1);
+
+        const target = boardRef.current as any;
+        if (target?.measure) {
+            target.measure((_x: number, _y: number, _w: number, _h: number, pageX: number, pageY: number) => {
+                resolveSwipeOrTap(dx, dy, endX - pageX, endY - pageY);
+            });
         } else {
-            if (dy > threshold) move(1, 0);
-            else if (dy < -threshold) move(-1, 0);
+            resolveSwipeOrTap(dx, dy, 0, 0);
         }
         webMouseDown.current = null;
     }, [move]);
-
-    // ─── Cell sizing (responsive) ─────────────────────────────────────────────
-    const { width: winW, height: winH } = useWindowDimensions();
-    // Compute available vertical space by subtracting measured header/stats/controls heights
-    const extraPadding = 48; // safe padding for margins and modals
-    const availableHeight = Math.max(200, winH - headerH - statsH - controlsH - extraPadding);
-    const maxBoardFromWidth = Math.max(200, winW - 32);
-    const boardMax = Math.min(maxBoardFromWidth, availableHeight);
-    let CELL = Math.floor(boardMax / maze.size);
-    if (CELL < 10) CELL = 10; // minimum cell size for usability
-    const BOARD_SIZE = CELL * maze.size;
-    // On web, also cap BOARD_SIZE to never exceed the available width/height
-    // so the grid can never overflow its bordered wrapper, even if CELL
-    // ends up larger than ideal due to the minimum cell size above.
-    const SAFE_BOARD_SIZE = Math.min(BOARD_SIZE, maxBoardFromWidth, availableHeight);
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
     const timerColor = timeLeft <= 10 ? '#FF4444' : timeLeft <= 20 ? '#FFD700' : '#4ade80';
@@ -512,12 +562,12 @@ export default function MazeScreen() {
                     // @ts-ignore - mouse events exist on web via react-native-web
                     onMouseUp={handleWebMouseUp}
                 >
-                    <View style={[styles.mazeWrapper, { borderColor: isChaseMode ? '#FF4444' : '#6b21a8', width: SAFE_BOARD_SIZE, height: SAFE_BOARD_SIZE, maxWidth: SAFE_BOARD_SIZE, maxHeight: SAFE_BOARD_SIZE }]}>
+                    <View ref={boardRef} style={[styles.mazeWrapper, { borderColor: isChaseMode ? '#FF4444' : '#6b21a8', width: SAFE_BOARD_SIZE, height: SAFE_BOARD_SIZE, maxWidth: SAFE_BOARD_SIZE, maxHeight: SAFE_BOARD_SIZE }]}>
                         <View
                             style={{
                                 width: BOARD_SIZE,
                                 height: BOARD_SIZE,
-                                transform: [{ scale: BOARD_SIZE > 0 ? SAFE_BOARD_SIZE / BOARD_SIZE : 1 }],
+                                transform: [{ scale: boardScale }],
                                 transformOrigin: 'top left',
                             }}
                         >
@@ -588,7 +638,7 @@ export default function MazeScreen() {
                             style={{
                                 width: BOARD_SIZE,
                                 height: BOARD_SIZE,
-                                transform: [{ scale: BOARD_SIZE > 0 ? SAFE_BOARD_SIZE / BOARD_SIZE : 1 }],
+                                transform: [{ scale: boardScale }],
                                 transformOrigin: 'top left',
                             }}
                         >
