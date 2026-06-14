@@ -49,8 +49,7 @@ export default function LeaderboardScreen() {
                 const { data } = await supabase
                     .from('profiles')
                     .select('id, username, avatar_url, coins')
-                    .order('coins', { ascending: false })
-                    .limit(100);
+                    .order('coins', { ascending: false });
 
                 if (data && active) {
                     setPlayers(data.filter((p: Player) => p.username && p.username.trim() !== ''));
