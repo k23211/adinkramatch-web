@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { C } from '../../constants/colors';
-import { Text, TouchableOpacity } from 'react-native';
+import { Text, TouchableOpacity, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthModal } from '../components/AuthModal';
 import { supabase } from '../../lib/supabase';
@@ -57,14 +57,16 @@ export default function TabLayout() {
                     tabBarIcon: ({ focused }) => <TabIcon emoji="🏆" focused={focused} />,
                 }}
             />
-            <Tabs.Screen
-                name="store"
-                options={{
-                    title: 'Store',
-                    tabBarIcon: ({ focused }) => <TabIcon emoji="🛍️" focused={focused} />,
-                    tabBarButton: (props: any) => <CustomTabButton {...props} />,
-                }}
-            />
+            {Platform.OS !== 'web' && (
+                <Tabs.Screen
+                    name="store"
+                    options={{
+                        title: 'Store',
+                        tabBarIcon: ({ focused }) => <TabIcon emoji="🛍️" focused={focused} />,
+                        tabBarButton: (props: any) => <CustomTabButton {...props} />,
+                    }}
+                />
+            )}
             <Tabs.Screen
                 name="profile"
                 options={{
