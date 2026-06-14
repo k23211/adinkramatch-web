@@ -10,6 +10,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    useWindowDimensions,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
@@ -377,8 +378,15 @@ export default function MazeScreen() {
         })
     ).current;
 
-    // ─── Cell sizing ──────────────────────────────────────────────────────────
-    const CELL = Math.floor((SCREEN_W - 32) / maze.size);
+    // ─── Cell sizing (responsive) ─────────────────────────────────────────────
+    const { width: winW, height: winH } = useWindowDimensions();
+    // Allow the board to occupy up to ~55% of viewport height and full width minus padding
+    const maxBoardFromWidth = Math.max(200, winW - 32);
+    const maxBoardFromHeight = Math.max(200, Math.floor(winH * 0.55));
+    const boardMax = Math.min(maxBoardFromWidth, maxBoardFromHeight);
+    let CELL = Math.floor(boardMax / maze.size);
+    if (CELL < 12) CELL = 12; // minimum cell size for usability
+    const BOARD_SIZE = CELL * maze.size;
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
     const timerColor = timeLeft <= 10 ? '#FF4444' : timeLeft <= 20 ? '#FFD700' : '#4ade80';
@@ -447,7 +455,7 @@ export default function MazeScreen() {
                 scrollEnabled={false}
                 {...panResponder.panHandlers}
             >
-                <View style={[styles.mazeWrapper, { borderColor: isChaseMode ? '#FF4444' : '#6b21a8' }]}>
+                <View style={[styles.mazeWrapper, { borderColor: isChaseMode ? '#FF4444' : '#6b21a8', width: BOARD_SIZE, height: BOARD_SIZE }]}>
                     {maze.grid.map((row, r) => (
                         <View key={r} style={{ flexDirection: 'row' }}>
                             {row.map((cell, c) => {
