@@ -5,6 +5,7 @@ import {
     Dimensions,
     Modal,
     PanResponder,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -529,25 +530,31 @@ export default function MazeScreen() {
                 </View>
             </ScrollView>
 
-            {/* D-Pad */}
+            {/* D-Pad (native) / Swipe hint (web) */}
             <View style={styles.controls} onLayout={(e) => setControlsH(e.nativeEvent.layout.height)}>
-                <TouchableOpacity style={styles.dBtn} onPress={() => move(-1, 0)} disabled={gameState !== 'playing'}>
-                    <Text style={styles.dBtnText}>▲</Text>
-                </TouchableOpacity>
-                <View style={styles.dRow}>
-                    <TouchableOpacity style={styles.dBtn} onPress={() => move(0, -1)} disabled={gameState !== 'playing'}>
-                        <Text style={styles.dBtnText}>◀</Text>
-                    </TouchableOpacity>
-                    <View style={styles.dCenter}>
-                        <Text style={styles.dCenterSymbol}>⬡</Text>
-                    </View>
-                    <TouchableOpacity style={styles.dBtn} onPress={() => move(0, 1)} disabled={gameState !== 'playing'}>
-                        <Text style={styles.dBtnText}>▶</Text>
-                    </TouchableOpacity>
-                </View>
-                <TouchableOpacity style={styles.dBtn} onPress={() => move(1, 0)} disabled={gameState !== 'playing'}>
-                    <Text style={styles.dBtnText}>▼</Text>
-                </TouchableOpacity>
+                {Platform.OS === 'web' ? (
+                    <Text style={styles.swipeHint}>Swipe on the maze to move 🧒🏾</Text>
+                ) : (
+                    <>
+                        <TouchableOpacity style={styles.dBtn} onPress={() => move(-1, 0)} disabled={gameState !== 'playing'}>
+                            <Text style={styles.dBtnText}>▲</Text>
+                        </TouchableOpacity>
+                        <View style={styles.dRow}>
+                            <TouchableOpacity style={styles.dBtn} onPress={() => move(0, -1)} disabled={gameState !== 'playing'}>
+                                <Text style={styles.dBtnText}>◀</Text>
+                            </TouchableOpacity>
+                            <View style={styles.dCenter}>
+                                <Text style={styles.dCenterSymbol}>⬡</Text>
+                            </View>
+                            <TouchableOpacity style={styles.dBtn} onPress={() => move(0, 1)} disabled={gameState !== 'playing'}>
+                                <Text style={styles.dBtnText}>▶</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity style={styles.dBtn} onPress={() => move(1, 0)} disabled={gameState !== 'playing'}>
+                            <Text style={styles.dBtnText}>▼</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
 
             {/* ── Win Modal ── */}
@@ -806,6 +813,14 @@ const styles = StyleSheet.create({
         marginTop: 14,
         alignItems: 'center',
         gap: 4,
+    },
+    swipeHint: {
+        color: '#7c3aed',
+        fontSize: 13,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+        marginTop: 4,
+        marginBottom: 4,
     },
     dRow: {
         flexDirection: 'row',

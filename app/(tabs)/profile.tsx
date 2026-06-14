@@ -5,6 +5,8 @@ import {
     TextInput, ScrollView, Alert, Platform, Linking
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+// web-only CSS moved to external file
+import './profile.css';
 import { C } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
 
@@ -117,13 +119,7 @@ export default function ProfileScreen() {
         <View style={styles.root}>
             {/* Background */}
             {Platform.OS === 'web' ? (
-                <div style={{
-                    position: 'absolute', inset: 0,
-                    backgroundImage: `url(${require('../../assets/images/profile.png')})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    filter: 'brightness(0.2)',
-                }} />
+                <div className="profile-bg" />
             ) : (
                 <Image
                     source={require('../../assets/images/profile.png')}
