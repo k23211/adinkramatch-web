@@ -156,6 +156,9 @@ export default function MazeScreen() {
     const chaserRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [seed, setSeed] = useState<number | null>(null);
+    const [headerH, setHeaderH] = useState(0);
+    const [statsH, setStatsH] = useState(0);
+    const [controlsH, setControlsH] = useState(0);
 
     // Animations
     const modalScale = useRef(new Animated.Value(0)).current;
@@ -380,10 +383,11 @@ export default function MazeScreen() {
 
     // ─── Cell sizing (responsive) ─────────────────────────────────────────────
     const { width: winW, height: winH } = useWindowDimensions();
-    // Allow the board to occupy up to ~55% of viewport height and full width minus padding
+    // Compute available vertical space by subtracting measured header/stats/controls heights
+    const extraPadding = 48; // safe padding for margins and modals
+    const availableHeight = Math.max(200, winH - headerH - statsH - controlsH - extraPadding);
     const maxBoardFromWidth = Math.max(200, winW - 32);
-    const maxBoardFromHeight = Math.max(200, Math.floor(winH * 0.55));
-    const boardMax = Math.min(maxBoardFromWidth, maxBoardFromHeight);
+    const boardMax = Math.min(maxBoardFromWidth, availableHeight);
     let CELL = Math.floor(boardMax / maze.size);
     if (CELL < 12) CELL = 12; // minimum cell size for usability
     const BOARD_SIZE = CELL * maze.size;
@@ -414,7 +418,7 @@ export default function MazeScreen() {
     return (
         <View style={styles.screen}>
             {/* Header */}
-            <View style={styles.header}>
+            <View style={styles.header} onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
                 <View>
                     <Text style={styles.title}>⬡ MAZE QUEST</Text>
                     <Text style={styles.subtitle}>
@@ -432,7 +436,7 @@ export default function MazeScreen() {
             </View>
 
             {/* Stats bar */}
-            <View style={styles.statsBar}>
+            <View style={styles.statsBar} onLayout={(e) => setStatsH(e.nativeEvent.layout.height)}>
                 <View style={styles.statBox}>
                     <Text style={styles.statLabel}>STEPS</Text>
                     <Text style={styles.statValue}>{steps}</Text>
@@ -513,7 +517,7 @@ export default function MazeScreen() {
             </ScrollView>
 
             {/* D-Pad */}
-            <View style={styles.controls}>
+            <View style={styles.controls} onLayout={(e) => setControlsH(e.nativeEvent.layout.height)}>
                 <TouchableOpacity style={styles.dBtn} onPress={() => move(-1, 0)} disabled={gameState !== 'playing'}>
                     <Text style={styles.dBtnText}>▲</Text>
                 </TouchableOpacity>
@@ -733,6 +737,8 @@ const styles = StyleSheet.create({
     mazeContainer: {
         alignItems: 'center',
         justifyContent: 'center',
+        width: '100%',
+        paddingHorizontal: 16,
     },
     mazeWrapper: {
         borderWidth: 2,
@@ -743,6 +749,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.8,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 0 },
+        alignSelf: 'center',
     },
     wall: {
         backgroundColor: '#1e0040',
