@@ -113,10 +113,10 @@ export default function StoreScreen() {
             });
 
             const cleanup = () => {
-                try { unsubLoaded(); } catch (e) {}
-                try { unsubEarned(); } catch (e) {}
-                try { unsubClosed(); } catch (e) {}
-                try { unsubError(); } catch (e) {}
+                try { unsubLoaded(); } catch (e) { }
+                try { unsubEarned(); } catch (e) { }
+                try { unsubClosed(); } catch (e) { }
+                try { unsubError(); } catch (e) { }
             };
 
             rewarded.load();
@@ -247,26 +247,41 @@ export default function StoreScreen() {
                     <Text style={styles.sectionTitle}>🎬 Watch Ad for Coins</Text>
                     <Text style={styles.sectionSub}>Watch a short video and earn free coins</Text>
 
-                    <TouchableOpacity
-                        style={[styles.adCard, adLoading && styles.disabled]}
-                        onPress={handleWatchAd}
-                        activeOpacity={0.85}
-                        disabled={adLoading}
-                    >
-                        <View style={styles.adLeft}>
-                            <Text style={styles.adIcon}>▶️</Text>
-                            <View>
-                                <Text style={styles.adTitle}>Watch a Video</Text>
-                                <Text style={styles.adSub}>Earn {AD_REWARD_COINS} coins instantly</Text>
+                    {Platform.OS === 'web' ? (
+                        <View style={[styles.adCard, styles.webDisabled]}>
+                            <View style={styles.adLeft}>
+                                <Text style={styles.adIcon}>▶️</Text>
+                                <View>
+                                    <Text style={styles.adTitle}>Watch a Video</Text>
+                                    <Text style={styles.adSub}>Earn {AD_REWARD_COINS} coins instantly</Text>
+                                </View>
+                            </View>
+                            <View style={styles.adBtn}>
+                                <Text style={styles.adBtnTextDisabled}>Available in the mobile app</Text>
                             </View>
                         </View>
-                        <View style={styles.adBtn}>
-                            {adLoading
-                                ? <ActivityIndicator size="small" color={C.bg} />
-                                : <Text style={styles.adBtnText}>WATCH</Text>
-                            }
-                        </View>
-                    </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            style={[styles.adCard, adLoading && styles.disabled]}
+                            onPress={handleWatchAd}
+                            activeOpacity={0.85}
+                            disabled={adLoading}
+                        >
+                            <View style={styles.adLeft}>
+                                <Text style={styles.adIcon}>▶️</Text>
+                                <View>
+                                    <Text style={styles.adTitle}>Watch a Video</Text>
+                                    <Text style={styles.adSub}>Earn {AD_REWARD_COINS} coins instantly</Text>
+                                </View>
+                            </View>
+                            <View style={styles.adBtn}>
+                                {adLoading
+                                    ? <ActivityIndicator size="small" color={C.bg} />
+                                    : <Text style={styles.adBtnText}>WATCH</Text>
+                                }
+                            </View>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* Divider */}
@@ -287,24 +302,37 @@ export default function StoreScreen() {
                         const isLoading = multiLoading === opt.id;
                         return (
                             <View key={opt.id} style={styles.packWrapper}>
-                                <TouchableOpacity
-                                    style={[styles.packCard, opt.ads === 3 && styles.packCardPopular]}
-                                    onPress={() => handleWatchMultiple(opt.id, opt.ads)}
-                                    activeOpacity={0.85}
-                                    disabled={adLoading || !!multiLoading}
-                                >
-                                    <Text style={styles.packCoin}>🪙</Text>
-                                    <View style={styles.packInfo}>
-                                        <Text style={styles.packCoins}>{opt.coins.toLocaleString()} Coins</Text>
-                                        <Text style={styles.packBonus}>Watch {opt.ads} ad{opt.ads > 1 ? 's' : ''} to earn</Text>
+                                {Platform.OS === 'web' ? (
+                                    <View style={[styles.packCard, opt.ads === 3 && styles.packCardPopular, styles.webDisabled]}>
+                                        <Text style={styles.packCoin}>🪙</Text>
+                                        <View style={styles.packInfo}>
+                                            <Text style={styles.packCoins}>{opt.coins.toLocaleString()} Coins</Text>
+                                            <Text style={styles.packBonus}>Watch {opt.ads} ad{opt.ads > 1 ? 's' : ''} to earn</Text>
+                                        </View>
+                                        <View style={styles.priceBtn}>
+                                            <Text style={styles.priceBtnTextDisabled}>Mobile app</Text>
+                                        </View>
                                     </View>
-                                    <View style={[styles.priceBtn, isLoading && styles.priceBtnLoading]}>
-                                        {isLoading
-                                            ? <ActivityIndicator size="small" color={C.bg} />
-                                            : <Text style={styles.priceBtnText}>WATCH</Text>
-                                        }
-                                    </View>
-                                </TouchableOpacity>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={[styles.packCard, opt.ads === 3 && styles.packCardPopular]}
+                                        onPress={() => handleWatchMultiple(opt.id, opt.ads)}
+                                        activeOpacity={0.85}
+                                        disabled={adLoading || !!multiLoading}
+                                    >
+                                        <Text style={styles.packCoin}>🪙</Text>
+                                        <View style={styles.packInfo}>
+                                            <Text style={styles.packCoins}>{opt.coins.toLocaleString()} Coins</Text>
+                                            <Text style={styles.packBonus}>Watch {opt.ads} ad{opt.ads > 1 ? 's' : ''} to earn</Text>
+                                        </View>
+                                        <View style={[styles.priceBtn, isLoading && styles.priceBtnLoading]}>
+                                            {isLoading
+                                                ? <ActivityIndicator size="small" color={C.bg} />
+                                                : <Text style={styles.priceBtnText}>WATCH</Text>
+                                            }
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         );
                     })}
@@ -377,6 +405,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     adBtnText: { color: C.bg, fontSize: 13, fontWeight: '800', letterSpacing: 1 },
+    adBtnTextDisabled: { color: C.muted, fontSize: 12, fontWeight: '700' },
     flagBar: {
         flexDirection: 'row',
         height: 4,
@@ -433,6 +462,8 @@ const styles = StyleSheet.create({
     },
     priceBtnLoading: { backgroundColor: C.goldDark },
     priceBtnText: { color: C.bg, fontSize: 13, fontWeight: '800' },
+    priceBtnTextDisabled: { color: C.muted, fontSize: 12, fontWeight: '800' },
+    webDisabled: { opacity: 0.65 },
     footer: {
         color: C.faint,
         fontSize: 11,
