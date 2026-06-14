@@ -1,0 +1,10 @@
+.profile-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 260px;
+    /* Using a gradient background for web (asset imports in CSS are not supported in the bundler) */
+    background: radial-gradient(circle at 20% 20%, rgba(124, 58, 237, 0.18), rgba(10, 10, 10, 0.6)), linear-gradient(180deg, rgba(124, 58, 237, 0.06), rgba(0, 0, 0, 0.4));
+    z-index: 0;
+}
